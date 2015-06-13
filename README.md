@@ -7,8 +7,7 @@ Consulta CNPJ e CPF na Receita com Captcha
 
 Basta digitar os campos CNPJ + Captcha , ou CPF + Data de Nascimanto + Captcha Para consulta os registros na Receita Federal
 
-Especial atenção para a pasta cookies, pois é lá que serão salvos os cookies de sessão com a Receita Federal. As constantes COOKIELOCAL
- , e HTTPCOOKIELOCAL devem apontar para a sua localização.
+Especial atenção para a pasta cookies, pois é lá que serão salvos os cookies de sessão com a Receita Federal. A constante COOKIELOCAL deve apontar para a sua localização.
 
 ##  Recomendações
 
