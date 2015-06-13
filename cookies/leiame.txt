@@ -1,0 +1,1 @@
+nesta pasta serão salvos os cookies de sessão das chamadas CURL com a receita
