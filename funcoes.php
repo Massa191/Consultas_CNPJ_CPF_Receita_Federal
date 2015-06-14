@@ -7,6 +7,7 @@
 // define caminho absoluto e relativo para arquivo cookie
 $pasta_cookies = 'cookies/';
 define('COOKIELOCAL', str_replace('\\', '/', realpath('./')).'/'.$pasta_cookies);
+define('HTTPCOOKIELOCAL',$pasta_cookies);
 
 // inicia sessão
 @session_start();
@@ -23,7 +24,7 @@ function pega_o_que_interessa($inicio,$fim,$total)
 function getHtmlCNPJ($cnpj, $captcha)
 {
     $cookieFile = COOKIELOCAL.'cnpj_'.session_id();
-	$cookieFile_fopen = $pasta_cookies.'cnpj_'.session_id();
+	$cookieFile_fopen = HTTPCOOKIELOCAL.'cnpj_'.session_id();
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -99,7 +100,7 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
 	$url = 'http://www.receita.fazenda.gov.br/Aplicacoes/ATCTA/CPF/ConsultaPublicaExibir.asp';
 
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
-	$cookieFile_fopen = $pasta_cookies.'cpf_'.session_id();
+	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
     if(!file_exists($cookieFile))
     {
         return false;      
