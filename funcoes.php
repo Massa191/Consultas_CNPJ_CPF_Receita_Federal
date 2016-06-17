@@ -97,8 +97,8 @@ function getHtmlCNPJ($cnpj, $captcha)
 // função para pegar a resposta html da consulta pelo CPF na página da receita
 function getHtmlCPF($cpf, $datanascim, $captcha)
 {
-	$url = 'http://www.receita.fazenda.gov.br/Aplicacoes/ATCTA/CPF/ConsultaPublicaExibir.asp';
-
+	$url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaPublicaExibir.asp';	// nova URL (https) SSL para consulta CPF
+	
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
 	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
     if(!file_exists($cookieFile))
@@ -125,7 +125,6 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
 	// dados que serão submetidos a consulta por post
     $post = array
     (
-
 		'txtTexto_captcha_serpro_gov_br'		=> $captcha,
 		'tempTxtCPF'							=> $cpf,
 		'tempTxtNascimento'						=> $datanascim,
@@ -139,18 +138,19 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);	// dados do arquivo de cookie
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
+	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);			// continua a sessão anterior com os dados do captcha
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-    curl_setopt($ch, CURLOPT_REFERER, 'http://www.receita.fazenda.gov.br/aplicacoes/atcta/cpf/consultapublica.asp');
+    curl_setopt($ch, CURLOPT_REFERER, 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaPublica.asp');						  
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $html = curl_exec($ch);
     curl_close($ch);
 	
     return $html;
 }
-
 
 // Função para extrair o que interessa da HTML e colocar em array
 function parseHtmlCNPJ($html)
@@ -282,5 +282,4 @@ function parseHtmlCPF($html)
 
 }
 
- 
 ?>
