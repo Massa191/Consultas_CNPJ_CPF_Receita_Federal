@@ -1,6 +1,6 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 05/06/2015 - correçâo ref alteraçâo parametros consulta CPF da receita de 03/06/2015
+// ultima atualização Marco/2017 alterada URL para geração do captcha da consulta de CPF
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
@@ -21,8 +21,8 @@ if($tipo_consulta == 'cpf')
 	// define arquivo de cookie e url da chamada curl para geração de captcha para consulta de cpf
 	$cookieFile = COOKIELOCAL.'cpf_'.session_id();
 	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
-	
-	$url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/captcha/gerarCaptcha.asp';	// nova URL (https) SSL para consulta CPF
+
+	$url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaSituacao/captcha/gerarCaptcha.asp';	// URL Alterada Marco/2017
 }
 else if ($tipo_consulta == 'cnpj')
 {

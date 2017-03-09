@@ -1,6 +1,6 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 05/06/2015 - correçâo ref alteraçâo parametros consulta CPF da receita de 03/06/2015
+// ultima atualização Marco 2017, alterada URL para consulta CPF e verificaçao versao SSL
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
@@ -36,12 +36,12 @@ function getHtmlCNPJ($cnpj, $captcha)
 		while (!feof($file))
 		{$conteudo .= fread($file, 1024);}
 		fclose ($file);
-
+		
 		$explodir = explode(chr(9),$conteudo);
 		
 		$sessionName = trim($explodir[count($explodir)-2]);
 		$sessionId = trim($explodir[count($explodir)-1]);
-
+		
 		// se não tem falg	1 no cookie então acrescenta
 		if(!strstr($conteudo,'flag	1'))
 		{
@@ -77,7 +77,7 @@ function getHtmlCNPJ($cnpj, $captcha)
     );
     
 	$post = http_build_query($post, NULL, '&');
-
+	
     $ch = curl_init('http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/valida.asp');
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
@@ -97,7 +97,7 @@ function getHtmlCNPJ($cnpj, $captcha)
 // função para pegar a resposta html da consulta pelo CPF na página da receita
 function getHtmlCPF($cpf, $datanascim, $captcha)
 {
-	$url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaPublicaExibir.asp';	// nova URL (https) SSL para consulta CPF
+    $url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaSituacao/ConsultaPublicaExibir.asp';	// nova URL Fev/2017 (https) SSL para consulta CPF
 	
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
 	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
@@ -112,16 +112,16 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
 		while (!feof($file))
 		{$conteudo .= fread($file, 1024);}
 		fclose ($file);
-
+		
 		$explodir = explode(chr(9),$conteudo);
 		
 		$sessionName = trim($explodir[count($explodir)-2]);
 		$sessionId = trim($explodir[count($explodir)-1]);
-
+		
 		// prepara a variavel de session
 		$cookie = $sessionName.'='.$sessionId;	
 	}
-
+	
 	// dados que serão submetidos a consulta por post
     $post = array
     (
@@ -132,7 +132,7 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
 		'temptxtTexto_captcha_serpro_gov_br'	=> $captcha
     );
     $post = http_build_query($post, NULL, '&');
-
+	
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
@@ -144,14 +144,15 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);			// continua a sessão anterior com os dados do captcha
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-    curl_setopt($ch, CURLOPT_REFERER, 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaPublica.asp');						  
+	curl_setopt($ch, CURLOPT_REFERER, 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaSituacao/ConsultaPublica.asp');	// Novo Referer Fev/2017
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_0);	// Novo Verif SSL Version Marco/2017 , por @marcotropeco
+	
     $html = curl_exec($ch);
     curl_close($ch);
 	
     return $html;
 }
-
 // Função para extrair o que interessa da HTML e colocar em array
 function parseHtmlCNPJ($html)
 {
@@ -179,7 +180,6 @@ function parseHtmlCNPJ($html)
 	'MOTIVO DE SITUAÇÃO CADASTRAL',
 	'SITUAÇÃO ESPECIAL',
 	'DATA DA SITUAÇÃO ESPECIAL');
-
 	// caracteres que devem ser eliminados da resposta
 	$caract_especiais = array(
 	chr(9),
@@ -191,12 +191,10 @@ function parseHtmlCNPJ($html)
 	'<b>MATRIZ<br>',
 	'<b>FILIAL<br>'
 	 );
-
 	// prepara a resposta para extrair os dados
 	$html = str_replace('<br><b>','<b>',str_replace($caract_especiais,'',strip_tags($html,'<b><br>')));
 	
 	$html3 = $html;
-
 	// faz a extração
 	for($i=0;$i<count($campos);$i++)
 	{		
@@ -204,7 +202,6 @@ function parseHtmlCNPJ($html)
 		$resultado[] = trim(pega_o_que_interessa(utf8_decode($campos[$i]).'<b>','<br>',$html2));
 		$html=$html2;
 	}
-
 	// extrai os CNAEs secundarios , quando forem mais de um
 	if(strstr($resultado[5],'<b>'))
 	{
@@ -212,7 +209,6 @@ function parseHtmlCNPJ($html)
 		$resultado[5] = $cnae_secundarios;
 		unset($cnae_secundarios);
 	}
-
 	// devolve STATUS da consulta correto
 	if(!$resultado[0])
 	{
@@ -225,9 +221,7 @@ function parseHtmlCNPJ($html)
 	{$resultado['status'] = 'OK';}
 	
 	return $resultado;
-
 }
-
 // Função para extrair o que interessa da HTML e colocar em array
 function parseHtmlCPF($html)
 {
@@ -254,7 +248,6 @@ function parseHtmlCPF($html)
 	
 	// para utilizar na hora de devolver o status da consulta
 	$html3 = $html;
-
 	// faz a extração
 	for($i=0;$i<count($campos);$i++)
 	{		
@@ -277,9 +270,6 @@ function parseHtmlCPF($html)
 	}
 	else
 	{$resultado['status'] = 'OK';}
-
 	return $resultado;
-
 }
-
 ?>
