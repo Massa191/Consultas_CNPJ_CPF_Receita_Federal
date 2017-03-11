@@ -10,22 +10,14 @@ require('funcoes.php');
 $cnpj = $_POST['cnpj'];						// Entradas POST devem ser tratadas para evitar injections
 $captcha_cnpj = $_POST['captcha_cnpj'];		// Entradas POST devem ser tratadas para evitar injections
 
-// dados da postagem do formulario de CPF
-$cpf = $_POST['cpf'];						// Entradas POST devem ser tratadas para evitar injections
-$datanascim = $_POST['txtDataNascimento'];	// Entradas POST devem ser tratadas para evitar injections
-$captcha_cpf = $_POST['captcha_cpf'];		// Entradas POST devem ser tratadas para evitar injections
-
 if($cnpj AND $captcha_cnpj)
 {
 	$getHtmlCNPJ = getHtmlCNPJ($cnpj, $captcha_cnpj);
 	$campos = parseHtmlCNPJ($getHtmlCNPJ);
 }
-if($cpf AND $datanascim AND $captcha_cpf)
-{
-	$getHtmlCPF = getHtmlCPF($cpf, $datanascim, $captcha_cpf);
-	$campos = parseHtmlCPF($getHtmlCPF);
-}
 
+echo "<pre>";
 print_r($campos);
+echo "</pre>";
 
 ?>
