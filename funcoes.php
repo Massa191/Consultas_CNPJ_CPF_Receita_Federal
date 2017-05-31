@@ -1,6 +1,7 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização Marco 2017, alterada URL para consulta CPF e verificaçao versao SSL
+// ultima atualização 29/Maio/2017, Consulta CPF. Novo array para extrair dados, novo link de consulta, novos parametros passados para consulta CPF na receita
+// novo link para consulta de CPF sem https, novo referer, etc...
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
@@ -95,9 +96,9 @@ function getHtmlCNPJ($cnpj, $captcha)
 }
 
 // função para pegar a resposta html da consulta pelo CPF na página da receita
-function getHtmlCPF($cpf, $datanascim, $captcha)
+function getHtmlCPF($cpf, $datanascim, $captcha, $token)
 {
-    $url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaSituacao/ConsultaPublicaExibir.asp';	// nova URL Fev/2017 (https) SSL para consulta CPF
+    $url = 'http://cpf.receita.fazenda.gov.br/situacao/ConsultaSituacao.asp';	// nova URL 29/maio/2017 para consulta CPF
 	
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
 	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
@@ -125,11 +126,10 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
 	// dados que serão submetidos a consulta por post
     $post = array
     (
+		'txtToken_captcha_serpro_gov_br'		=> $token,
 		'txtTexto_captcha_serpro_gov_br'		=> $captcha,
-		'tempTxtCPF'							=> $cpf,
-		'tempTxtNascimento'						=> $datanascim,
-		'temptxtToken_captcha_serpro_gov_br'	=> '',
-		'temptxtTexto_captcha_serpro_gov_br'	=> $captcha
+		'txtCPF'								=> $cpf,
+		'txtDataNascimento'						=> $datanascim,
     );
     $post = http_build_query($post, NULL, '&');
 	
@@ -137,22 +137,19 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
-    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);	// dados do arquivo de cookie
-	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
-	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);			// continua a sessão anterior com os dados do captcha
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-	curl_setopt($ch, CURLOPT_REFERER, 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaSituacao/ConsultaPublica.asp');	// Novo Referer Fev/2017
+    curl_setopt($ch, CURLOPT_REFERER, 'http://cpf.receita.fazenda.gov.br/situacao/');	// Novo Referer 29/Maio/2017
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSLVERSION, CURL_SSLVERSION_TLSv1_0);	// Novo Verif SSL Version Marco/2017 , por @marcotropeco
 	
     $html = curl_exec($ch);
     curl_close($ch);
-	
+
     return $html;
 }
+
 // Função para extrair o que interessa da HTML e colocar em array
 function parseHtmlCNPJ($html)
 {
@@ -227,44 +224,34 @@ function parseHtmlCPF($html)
 {
 	// respostas que interessam
 	$campos = array(
-	'No do CPF:',
-	'Nome da Pessoa Física:',
-	'Data de Nascimento:',
-	'Situação Cadastral:',
-	'Data da Inscrição:'
+	'N&ordm; do CPF: <span class="clBold">',
+	'Nome: <span class="clBold">',
+	'Data Nascimento: <span class="clBold">',
+	'Situa&ccedil;&atilde;o Cadastral: <span class="clBold">',
+	'Data de Inscri&ccedil;&atilde;o no CPF: <span class="clBold">'
 	);
-	
-	// caracteres que devem ser eliminados da resposta
-	$caract_especiais = array(
-	chr(9),
-	chr(10),
-	chr(13),
-	'&nbsp;',
-	'  ',
-	 );
-	
-	// prepara a resposta para extrair os dados
-	$html = str_replace('<br /><br />','<br />',str_replace($caract_especiais,'',strip_tags($html,'<b><br>')));
-	
+
 	// para utilizar na hora de devolver o status da consulta
 	$html3 = $html;
 	// faz a extração
 	for($i=0;$i<count($campos);$i++)
 	{		
 		$html2 = strstr($html,utf8_decode($campos[$i]));
-		$resultado[] = trim(pega_o_que_interessa(utf8_decode($campos[$i]),'<br',$html2));
+		$resultado[] = trim(pega_o_que_interessa(utf8_decode($campos[$i]),'</span>',$html2));
 		$html=$html2;
 	}
 	
 	// devolve STATUS da consulta correto
 	if(!$resultado[0])
 	{
-		if(strstr($html3,utf8_decode('CPF incorreto')))
+		if(strstr($html3,'CPF incorreto'))
 		{$resultado['status'] = 'CPF incorreto';}		
-		else if(strstr($html3,utf8_decode('não existe em nossa base de dados')))
+		else if(strstr($html3,'n&atilde;o existe em nossa base de dados'))
 		{$resultado['status'] = 'CPF não existe';}
-		else if(strstr($html3,utf8_decode('Os caracteres da imagem não foram preenchidos corretamente')))
+		else if(strstr($html3,'Os caracteres da imagem n&atilde;o foram preenchidos corretamente'))
 		{$resultado['status'] = 'Imagem digitada incorretamente';}
+		else if(strstr($html3,'Data de nascimento informada'))
+		{$resultado['status'] = 'Data de Nascimento divergente';}
 		else
 		{$resultado['status'] = 'Receita não responde';}
 	}

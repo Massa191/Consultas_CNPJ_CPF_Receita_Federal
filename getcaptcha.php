@@ -1,10 +1,11 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização Marco/2017 alterada URL para geração do captcha da consulta de CPF
+// ultima atualização 29/Maio/2017 Eliminados scripts geração captcha CPF devido a ultima alteração da receita.
+// Geração do captcha CPF Agora é independentes no script getcaptcha_cpf.php, devido a necessidade de echoar o resultado no navegador
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
-//	tipo de consulta (cpf ou cnpj) para gerar o captcha corretamente
+//	tipo de consulta (cnpj) para gerar o captcha corretamente
 $tipo_consulta = $_GET['tipo_consulta'];
 
 //	define o local onde serão guardados os cookies de sessão , path real e completo
@@ -15,16 +16,7 @@ define('HTTPCOOKIELOCAL',$pasta_cookies);
 // inicia sessão
 @session_start();
 	
-// define os nomes dos arquivos de cookie para cada tipo de consulta
-if($tipo_consulta == 'cpf')
-{
-	// define arquivo de cookie e url da chamada curl para geração de captcha para consulta de cpf
-	$cookieFile = COOKIELOCAL.'cpf_'.session_id();
-	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
-
-	$url = 'https://www.receita.fazenda.gov.br/Aplicacoes/SSL/ATCTA/CPF/ConsultaSituacao/captcha/gerarCaptcha.asp';	// URL Alterada Marco/2017
-}
-else if ($tipo_consulta == 'cnpj')
+if ($tipo_consulta == 'cnpj')
 {
 	// define arquivo de cookie e url da chamada curl para geração de captcha para consulta de cnpj
 	$cookieFile = COOKIELOCAL.'cnpj_'.session_id();
@@ -44,8 +36,6 @@ if(!file_exists($cookieFile))
 $ch = curl_init($url);
 curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);
 curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
-curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
 curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $imgsource = curl_exec($ch);
@@ -58,7 +48,6 @@ if(!empty($imgsource))
 	header('Content-type: image/jpg');
 	imagejpeg($img);
 }
-
 
 
 // --------------- aqui abaixo hack para consulta de cnpj.-----------
