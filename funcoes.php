@@ -1,6 +1,6 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 29/Maio/2017, Consulta CPF. Novo array para extrair dados, novo link de consulta, novos parametros passados para consulta CPF na receita
+// ultima atualização 31/Maio/2017, Consulta CPF. Novo array para extrair dados, novo link de consulta, novos parametros passados para consulta CPF na receita
 // novo link para consulta de CPF sem https, novo referer, etc...
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
@@ -8,7 +8,6 @@
 // define caminho absoluto e relativo para arquivo cookie
 $pasta_cookies = 'cookies/';
 define('COOKIELOCAL', str_replace('\\', '/', realpath('./')).'/'.$pasta_cookies);
-define('HTTPCOOKIELOCAL',$pasta_cookies);
 
 // inicia sessão
 @session_start();
@@ -20,12 +19,11 @@ function pega_o_que_interessa($inicio,$fim,$total)
 	return($interesse);
 }
 
-
 // função para pegar a resposta html da consulta pelo CPF na página da receita
 function getHtmlCNPJ($cnpj, $captcha)
 {
     $cookieFile = COOKIELOCAL.'cnpj_'.session_id();
-	$cookieFile_fopen = HTTPCOOKIELOCAL.'cnpj_'.session_id();
+
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -33,7 +31,7 @@ function getHtmlCNPJ($cnpj, $captcha)
 	else
 	{
 		// pega os dados de sessão gerados na visualização do captcha dentro do cookie
-		$file = fopen($cookieFile_fopen, 'r');
+		$file = fopen($cookieFile, 'r');
 		while (!feof($file))
 		{$conteudo .= fread($file, 1024);}
 		fclose ($file);
@@ -79,12 +77,22 @@ function getHtmlCNPJ($cnpj, $captcha)
     
 	$post = http_build_query($post, NULL, '&');
 	
+	// prepara headers da consulta
+	$headers = array(
+	'Host: www.receita.fazenda.gov.br',
+	'User-Agent: Mozilla/5.0 (Windows NT 6.1; rv:53.0) Gecko/20100101 Firefox/53.0',
+	'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+	'Accept-Language: pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3',
+	'Connection: keep-alive',
+	'Upgrade-Insecure-Requests: 1',	
+);
+	
     $ch = curl_init('http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/valida.asp');
+	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);	// dados do arquivo de cookie
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);	    // dados de sessão e flag=1
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
@@ -101,7 +109,7 @@ function getHtmlCPF($cpf, $datanascim, $captcha, $token)
     $url = 'http://cpf.receita.fazenda.gov.br/situacao/ConsultaSituacao.asp';	// nova URL 29/maio/2017 para consulta CPF
 	
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
-	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
+
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -109,7 +117,7 @@ function getHtmlCPF($cpf, $datanascim, $captcha, $token)
 	else
 	{
 		// pega os dados de sessão gerados na visualização do captcha dentro do cookie
-		$file = fopen($cookieFile_fopen, 'r');
+		$file = fopen($cookieFile, 'r');
 		while (!feof($file))
 		{$conteudo .= fread($file, 1024);}
 		fclose ($file);
@@ -132,12 +140,23 @@ function getHtmlCPF($cpf, $datanascim, $captcha, $token)
 		'txtDataNascimento'						=> $datanascim,
     );
     $post = http_build_query($post, NULL, '&');
-	
+
+	// prepara headers da consulta
+	$headers = array(
+	'Host: cpf.receita.fazenda.gov.br',
+	'User-Agent: Mozilla/5.0 (Windows NT 6.1; rv:53.0) Gecko/20100101 Firefox/53.0',
+	'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+	'Accept-Language: pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3',
+	'Connection: keep-alive',
+	'Upgrade-Insecure-Requests: 1',	
+);
+
     $ch = curl_init($url);
+	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
+    curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);	// dados do arquivo de cookie
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);			// continua a sessão anterior com os dados do captcha
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
