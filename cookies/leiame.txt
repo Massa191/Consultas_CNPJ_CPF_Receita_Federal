@@ -1,1 +1,1 @@
-nesta pasta ser„o salvos os cookies de sess„o das chamadas CURL com a receita
+Nesta pasta ser√£o salvos os cookies de sess√£o das chamadas CURL com a receita.
