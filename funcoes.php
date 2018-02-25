@@ -1,7 +1,6 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 31/Maio/2017, Consulta CPF. Novo array para extrair dados, novo link de consulta, novos parametros passados para consulta CPF na receita
-// novo link para consulta de CPF sem https, novo referer, etc...
+// ultima atualização 24/02/2018 - Scripts alterados para utilização do captcha sonoro, unica opção após a atualização da receita com recaptcha do google
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
@@ -23,7 +22,6 @@ function pega_o_que_interessa($inicio,$fim,$total)
 function getHtmlCNPJ($cnpj, $captcha)
 {
     $cookieFile = COOKIELOCAL.'cnpj_'.session_id();
-
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -104,12 +102,11 @@ function getHtmlCNPJ($cnpj, $captcha)
 }
 
 // função para pegar a resposta html da consulta pelo CPF na página da receita
-function getHtmlCPF($cpf, $datanascim, $captcha, $token)
+function getHtmlCPF($cpf, $datanascim, $captcha)
 {
     $url = 'http://cpf.receita.fazenda.gov.br/situacao/ConsultaSituacao.asp';	// nova URL 29/maio/2017 para consulta CPF
 	
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
-
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -134,13 +131,12 @@ function getHtmlCPF($cpf, $datanascim, $captcha, $token)
 	// dados que serão submetidos a consulta por post
     $post = array
     (
-		'txtToken_captcha_serpro_gov_br'		=> $token,
 		'txtTexto_captcha_serpro_gov_br'		=> $captcha,
 		'txtCPF'								=> $cpf,
 		'txtDataNascimento'						=> $datanascim,
     );
     $post = http_build_query($post, NULL, '&');
-
+	
 	// prepara headers da consulta
 	$headers = array(
 	'Host: cpf.receita.fazenda.gov.br',
@@ -150,7 +146,6 @@ function getHtmlCPF($cpf, $datanascim, $captcha, $token)
 	'Connection: keep-alive',
 	'Upgrade-Insecure-Requests: 1',	
 );
-
     $ch = curl_init($url);
 	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -160,12 +155,11 @@ function getHtmlCPF($cpf, $datanascim, $captcha, $token)
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);			// continua a sessão anterior com os dados do captcha
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-    curl_setopt($ch, CURLOPT_REFERER, 'http://cpf.receita.fazenda.gov.br/situacao/');	// Novo Referer 29/Maio/2017
+    curl_setopt($ch, CURLOPT_REFERER, 'http://cpf.receita.fazenda.gov.br/situacao/defaultSonoro.asp?CPF=&NASCIMENTO=');	// Novo Referer 24/Fev/2018
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	
     $html = curl_exec($ch);
     curl_close($ch);
-
     return $html;
 }
 
@@ -249,7 +243,6 @@ function parseHtmlCPF($html)
 	'Situa&ccedil;&atilde;o Cadastral: <span class="clBold">',
 	'Data de Inscri&ccedil;&atilde;o no CPF: <span class="clBold">'
 	);
-
 	// para utilizar na hora de devolver o status da consulta
 	$html3 = $html;
 	// faz a extração

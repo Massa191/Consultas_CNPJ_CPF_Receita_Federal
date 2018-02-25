@@ -1,18 +1,13 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 01/Junho/2017 - correçâo ref alteraçâo consulta CPF na receita e otimização de scripts
-// introduzidos parametro token_cpf. Obtenção de token e captcha para consulta de CPF introduzidos no script getcaptcha.php
-// getcaptcha.php agora é incluido para dentro de index.php e os captchas não são mais gerados pela bib. GD
-
+// ultima atualização 24/02/2018 - Scripts alterados para utilização do captcha sonoro, unica opção após a atualização da receita com recaptcha do google
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
-
 // importante, CPF e DATA de NASCIM. devem ser digitados no formato ###.###.###-##  e  dd/mm/aaaa
 // CNPJ devem ser digitados só NUMEROS   ###########  (sem ponto ou hifem)
 // essas entradas nâo foram tratadas, pois o objetivo é apenas a implementaçâo da soluçao das consulta e testes
 
 include("getcaptcha.php");
-
 ?>
 <html>
 
@@ -59,7 +54,6 @@ include("getcaptcha.php");
 			<br />
 		</p>
 		<p>
-			<input type="hidden" name="token_cpf" id="token_cpf" value="<?php echo $token_cpf; ?>" />
 			<input id="enviar" name="enviar" type="submit" value="Consultar"/>
 		</p>
 		<p>

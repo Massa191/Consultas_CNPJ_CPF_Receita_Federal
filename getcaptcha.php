@@ -1,8 +1,6 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 01/Junho/2017 Geração dos captchas CNPJ e CPF (nova versão CPF, com captcha e token apartir de payload)
-// getcaptcha.php agora não utiliza mais a biblioteca GD para geração de captchas e é incluido em index.php
-
+// ultima atualização 24/02/2018 - Scripts alterados para utilização do captcha sonoro, unica opção após a atualização da receita com recaptcha do google
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
@@ -24,12 +22,12 @@ $headers = array(
 );	
 
 // urls para obtenção dos dados
-$url['cnpj'] = 'http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/Cnpjreva_Solicitacao2.asp';
+$url['cnpj'] = 'http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/Cnpjreva_solicitacao3.asp';
 $url_captcha['cnpj'] = 'http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/captcha/gerarCaptcha.asp';
 $host['cnpj'] = 'Host: www.receita.fazenda.gov.br';
 
 $url['cpf'] = 'http://cpf.receita.fazenda.gov.br/situacao/';
-$url_captcha['cpf'] = 'http://captcha2.servicoscorporativos.serpro.gov.br/captcha/1.0.0/imagem';
+$url_captcha['cpf'] = 'http://cpf.receita.fazenda.gov.br/situacao/defaultSonoro.asp?CPF=&NASCIMENTO=';
 $host['cpf'] =  'Host: cpf.receita.fazenda.gov.br';
 
 // percorre os arrays fazendo as chamadas de CNPJ e CPF: $key é o tipo de chamada
@@ -37,7 +35,7 @@ foreach ($url as $key => $value)
 {
 	// define o hosts a ser usado no header da chamada curl conforme $key
 	$headers[0] = $host[$key];
-
+	
 	// define o nome do arquivo de cookie a ser usado para cada chamada conforme $key
 	$cookieFile = COOKIELOCAL.$key.'_'.session_id();
 	
@@ -70,8 +68,8 @@ foreach ($url as $key => $value)
 	curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);
 	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 	$result = curl_exec($ch);
-	curl_close($ch);		
-
+	curl_close($ch);
+	
 	// trata os resultados da consulta curl
 	if(!empty($result))
 	{
@@ -91,17 +89,7 @@ foreach ($url as $key => $value)
 		
 		// faz segunda chamada para pegar o captcha
 		$ch = curl_init($url_captcha[$key]);
-		// se for para pegar o captcha e token da consulta CPF, é necessário passar payload com metodo post
-		if($key == 'cpf')
-		{
-			// pega payload dentro da html, e posta
-			$corte_inicial = 'data-clienteid="';
-			$corte_final = '"></div>';
-			$payload = str_replace($corte_inicial,'',str_replace(strstr(strstr($result,$corte_inicial),$corte_final),'',strstr($result,$corte_inicial)));
-
-			curl_setopt($ch, CURLOPT_POST, true);				// seta metodo POST para envio de payload
-			curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);		// aqui vai o payload para obter token e captcha da consulta CPF
-		}
+		
 		// continua setando parâmetros da chamada curl
 		curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);		// headers da chamada 
 		curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
@@ -117,15 +105,26 @@ foreach ($url as $key => $value)
 		{$imagem_cnpj = 'data:image/png;base64,'.base64_encode($result);}
 		else if($key == 'cpf')
 		{
-			// pega token e captcha
-			$token_captcha = explode('@', $result);
-			
-			$token_cpf = $token_captcha[0];
-			$imagem_cpf = 'data:image/png;base64,'.$token_captcha[1];	// esta imagem do captcha de CPF já está encodada base 64
+
+			// Pega Imagem Captcha
+
+			$doc = new DOMDocument();
+			@$doc->loadHTML($result);
+
+			$tags = $doc->getElementsByTagName('img');
+			$count = 0;
+			foreach ($tags as $tag)
+			{
+				$count++;
+				
+				if($tag->getAttribute('id') == "imgCaptcha")
+				{$imagem_cpf = $tag->getAttribute('src');}
+
+			}
+
 		}
 			
 	}
-
+	
 }
-
 ?>
