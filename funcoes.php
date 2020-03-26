@@ -1,13 +1,12 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 05/06/2015 - correçâo ref alteraçâo parametros consulta CPF da receita de 03/06/2015
+// ultima atualização 26/03/2020 - Scripts alterados para utilização do captcha sonoro, unica opção após a atualização da receita com recaptcha do google
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
 // define caminho absoluto e relativo para arquivo cookie
 $pasta_cookies = 'cookies/';
 define('COOKIELOCAL', str_replace('\\', '/', realpath('./')).'/'.$pasta_cookies);
-define('HTTPCOOKIELOCAL',$pasta_cookies);
 
 // inicia sessão
 @session_start();
@@ -19,12 +18,10 @@ function pega_o_que_interessa($inicio,$fim,$total)
 	return($interesse);
 }
 
-
 // função para pegar a resposta html da consulta pelo CPF na página da receita
 function getHtmlCNPJ($cnpj, $captcha)
 {
     $cookieFile = COOKIELOCAL.'cnpj_'.session_id();
-	$cookieFile_fopen = HTTPCOOKIELOCAL.'cnpj_'.session_id();
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -32,23 +29,30 @@ function getHtmlCNPJ($cnpj, $captcha)
 	else
 	{
 		// pega os dados de sessão gerados na visualização do captcha dentro do cookie
-		$file = fopen($cookieFile_fopen, 'r');
+		$file = fopen($cookieFile, 'r');
 		while (!feof($file))
 		{$conteudo .= fread($file, 1024);}
 		fclose ($file);
-
-		$explodir = explode(chr(9),$conteudo);
 		
-		$sessionName = trim($explodir[count($explodir)-2]);
-		$sessionId = trim($explodir[count($explodir)-1]);
-
+		$linha = explode("\n",$conteudo);
+		
+		// monta o cookie com os dados da sessão
+		for($contador = 4; $contador < count($linha)-1; $contador++)
+		{
+			$explodir = explode(chr(9),$linha[$contador]);
+			$cookie .= trim($explodir[count($explodir)-2])."=".trim($explodir[count($explodir)-1])."; ";
+		}
+		
+		// acerta o cookie a ser enviado com os dados da sessão
+		$cookie = substr($cookie,0,-2);
+		
 		// se não tem falg	1 no cookie então acrescenta
 		if(!strstr($conteudo,'flag	1'))
 		{
 			// linha que deve ser inserida no cookie antes da consulta cnpj
 			// observações argumentos separados por tab (chr(9)) e new line no final e inicio da linha (chr(10))
 			// substitui dois chr(10) padrão do cookie para separar cabecario do conteudo , adicionando o conteudo $linha , que tb inicia com dois chr(10)
-			$linha = chr(10).chr(10).'www.receita.fazenda.gov.br	FALSE	/pessoajuridica/cnpj/cnpjreva/	FALSE	0	flag	1'.chr(10);
+			$linha = chr(10).chr(10).'servicos.receita.fazenda.gov.br	FALSE	/	FALSE	0	flag	1'.chr(10);
 			// novo cookie com o flag=1 dentro dele , antes da linha de sessionname e sessionid
 			$novo_cookie = str_replace(chr(10).chr(10),$linha,$conteudo);
 			
@@ -59,16 +63,19 @@ function getHtmlCNPJ($cnpj, $captcha)
 			$file = fopen($cookieFile, 'w');
 			fwrite($file, $novo_cookie);
 			fclose($file);
+			
+			// constroe o parâmetro de sessão que será passado no próximo curl
+			$cookie .= ';flag=1';
+			
 		}
 		
-		// constroe o parâmetro de sessão que será passado no próximo curl
-		$cookie = $sessionName.'='.$sessionId.';flag=1';	
+	
 	}
 	
 	// dados que serão submetidos a consulta por post
     $post = array
     (
-		'submit1'						=> 'Consultar',
+
 		'origem'						=> 'comprovante',
 		'cnpj' 							=> $cnpj, 
 		'txtTexto_captcha_serpro_gov_br'=> $captcha,
@@ -77,17 +84,27 @@ function getHtmlCNPJ($cnpj, $captcha)
     );
     
 	$post = http_build_query($post, NULL, '&');
-
-    $ch = curl_init('http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/valida.asp');
+	
+	// prepara headers da consulta
+	$headers = array(
+	'Host: servicos.receita.fazenda.gov.br',
+	'User-Agent: Mozilla/5.0 (Windows NT 6.1; rv:53.0) Gecko/20100101 Firefox/53.0',
+	'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+	'Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+	'Connection: keep-alive',
+	'Upgrade-Insecure-Requests: 1',	
+);
+	
+    $ch = curl_init('http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/valida.asp');
+	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);	// dados do arquivo de cookie
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);	    // dados de sessão e flag=1
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-    curl_setopt($ch, CURLOPT_REFERER, 'http://www.receita.fazenda.gov.br/pessoajuridica/cnpj/cnpjreva/Cnpjreva_Solicitacao2.asp');
+    curl_setopt($ch, CURLOPT_REFERER, 'http://servicos.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao_CS.asp');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $html = curl_exec($ch);
     curl_close($ch);
@@ -97,10 +114,9 @@ function getHtmlCNPJ($cnpj, $captcha)
 // função para pegar a resposta html da consulta pelo CPF na página da receita
 function getHtmlCPF($cpf, $datanascim, $captcha)
 {
-	$url = 'http://www.receita.fazenda.gov.br/Aplicacoes/ATCTA/CPF/ConsultaPublicaExibir.asp';
-
+    $url = 'https://servicos.receita.fazenda.gov.br/Servicos/CPF/ConsultaSituacao/ConsultaPublicaExibir.asp';	// nova URL 24/marco/2020 para consulta CPF
+	
     $cookieFile = COOKIELOCAL.'cpf_'.session_id();
-	$cookieFile_fopen = HTTPCOOKIELOCAL.'cpf_'.session_id();
     if(!file_exists($cookieFile))
     {
         return false;      
@@ -108,49 +124,64 @@ function getHtmlCPF($cpf, $datanascim, $captcha)
 	else
 	{
 		// pega os dados de sessão gerados na visualização do captcha dentro do cookie
-		$file = fopen($cookieFile_fopen, 'r');
+		$file = fopen($cookieFile, 'r');
 		while (!feof($file))
 		{$conteudo .= fread($file, 1024);}
 		fclose ($file);
-
-		$explodir = explode(chr(9),$conteudo);
 		
-		$sessionName = trim($explodir[count($explodir)-2]);
-		$sessionId = trim($explodir[count($explodir)-1]);
-
-		// prepara a variavel de session
-		$cookie = $sessionName.'='.$sessionId;	
+		$linha = explode("\n",$conteudo);
+		
+		// monta o cookie com os dados da sessão
+		for($contador = 4; $contador < count($linha)-1; $contador++)
+		{
+			$explodir = explode(chr(9),$linha[$contador]);
+			$cookie .= trim($explodir[count($explodir)-2])."=".trim($explodir[count($explodir)-1])."; ";
+		}
+		
+		// acerta o cookie a ser enviado com os dados da sessão
+		$cookie = substr($cookie,0,-2);
+		
 	}
-
+	
 	// dados que serão submetidos a consulta por post
     $post = array
     (
-
 		'txtTexto_captcha_serpro_gov_br'		=> $captcha,
-		'tempTxtCPF'							=> $cpf,
-		'tempTxtNascimento'						=> $datanascim,
-		'temptxtToken_captcha_serpro_gov_br'	=> '',
-		'temptxtTexto_captcha_serpro_gov_br'	=> $captcha
+		'txtCPF'								=> $cpf,
+		'txtDataNascimento'						=> $datanascim,
+		'Enviar'								=> 'Consultar',
+		'CPF'									=> '', 
+		'NASCIMENTO'							=> '' 
     );
     $post = http_build_query($post, NULL, '&');
-
+	
+	// prepara headers da consulta
+	$headers = array(
+	'Host: servicos.receita.fazenda.gov.br',
+	'User-Agent: Mozilla/5.0 (Windows NT 6.1; rv:53.0) Gecko/20100101 Firefox/53.0',
+	'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+	'Accept-Language: pt-BR,pt;q=0.8,en-US;q=0.5,en;q=0.3',
+	'Connection: keep-alive',
+	'Upgrade-Insecure-Requests: 1',	
+);
     $ch = curl_init($url);
+	curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $post);		// aqui estão os campos de formulário
     curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieFile);	// dados do arquivo de cookie
     curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieFile);	// dados do arquivo de cookie
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:8.0) Gecko/20100101 Firefox/8.0');
     curl_setopt($ch, CURLOPT_COOKIE, $cookie);			// continua a sessão anterior com os dados do captcha
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
-    curl_setopt($ch, CURLOPT_REFERER, 'http://www.receita.fazenda.gov.br/aplicacoes/atcta/cpf/consultapublica.asp');
+    curl_setopt($ch, CURLOPT_REFERER, 'https://servicos.receita.fazenda.gov.br/Servicos/CPF/ConsultaSituacao/ConsultaPublicaSonoro.asp?CPF=&NASCIMENTO=');	// Novo Referer 24/Fev/2020
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
+	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);	// para consulta de CPF, necessário devido SSL (https), para CNPJ este parametro não interfere na consulta
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	
     $html = curl_exec($ch);
     curl_close($ch);
-	
     return $html;
 }
-
 
 // Função para extrair o que interessa da HTML e colocar em array
 function parseHtmlCNPJ($html)
@@ -161,6 +192,7 @@ function parseHtmlCNPJ($html)
 	'DATA DE ABERTURA',
 	'NOME EMPRESARIAL',
 	'TÍTULO DO ESTABELECIMENTO (NOME DE FANTASIA)',
+	'PORTE',
 	'CÓDIGO E DESCRIÇÃO DA ATIVIDADE ECONÔMICA PRINCIPAL',
 	'CÓDIGO E DESCRIÇÃO DAS ATIVIDADES ECONÔMICAS SECUNDÁRIAS',
 	'CÓDIGO E DESCRIÇÃO DA NATUREZA JURÍDICA',
@@ -179,7 +211,6 @@ function parseHtmlCNPJ($html)
 	'MOTIVO DE SITUAÇÃO CADASTRAL',
 	'SITUAÇÃO ESPECIAL',
 	'DATA DA SITUAÇÃO ESPECIAL');
-
 	// caracteres que devem ser eliminados da resposta
 	$caract_especiais = array(
 	chr(9),
@@ -191,12 +222,10 @@ function parseHtmlCNPJ($html)
 	'<b>MATRIZ<br>',
 	'<b>FILIAL<br>'
 	 );
-
 	// prepara a resposta para extrair os dados
 	$html = str_replace('<br><b>','<b>',str_replace($caract_especiais,'',strip_tags($html,'<b><br>')));
 	
 	$html3 = $html;
-
 	// faz a extração
 	for($i=0;$i<count($campos);$i++)
 	{		
@@ -204,7 +233,6 @@ function parseHtmlCNPJ($html)
 		$resultado[] = trim(pega_o_que_interessa(utf8_decode($campos[$i]).'<b>','<br>',$html2));
 		$html=$html2;
 	}
-
 	// extrai os CNAEs secundarios , quando forem mais de um
 	if(strstr($resultado[5],'<b>'))
 	{
@@ -212,7 +240,6 @@ function parseHtmlCNPJ($html)
 		$resultado[5] = $cnae_secundarios;
 		unset($cnae_secundarios);
 	}
-
 	// devolve STATUS da consulta correto
 	if(!$resultado[0])
 	{
@@ -225,62 +252,44 @@ function parseHtmlCNPJ($html)
 	{$resultado['status'] = 'OK';}
 	
 	return $resultado;
-
 }
-
 // Função para extrair o que interessa da HTML e colocar em array
 function parseHtmlCPF($html)
 {
 	// respostas que interessam
 	$campos = array(
-	'No do CPF:',
-	'Nome da Pessoa Física:',
-	'Data de Nascimento:',
-	'Situação Cadastral:',
-	'Data da Inscrição:'
+	'N<sup>o</sup> do CPF: <b>',
+	'Nome: <b>',
+	'Data de Nascimento: <b>',
+	'Cadastral: <b>',
+	'Data da Inscri&ccedil;&atilde;o: <b>'
 	);
-	
-	// caracteres que devem ser eliminados da resposta
-	$caract_especiais = array(
-	chr(9),
-	chr(10),
-	chr(13),
-	'&nbsp;',
-	'  ',
-	 );
-	
-	// prepara a resposta para extrair os dados
-	$html = str_replace('<br /><br />','<br />',str_replace($caract_especiais,'',strip_tags($html,'<b><br>')));
-	
 	// para utilizar na hora de devolver o status da consulta
 	$html3 = $html;
-
 	// faz a extração
 	for($i=0;$i<count($campos);$i++)
 	{		
 		$html2 = strstr($html,utf8_decode($campos[$i]));
-		$resultado[] = trim(pega_o_que_interessa(utf8_decode($campos[$i]),'<br',$html2));
+		$resultado[] = trim(pega_o_que_interessa(utf8_decode($campos[$i]),'</b>',$html2));
 		$html=$html2;
 	}
 	
 	// devolve STATUS da consulta correto
 	if(!$resultado[0])
 	{
-		if(strstr($html3,utf8_decode('CPF incorreto')))
+		if(strstr($html3,'CPF incorreto'))
 		{$resultado['status'] = 'CPF incorreto';}		
-		else if(strstr($html3,utf8_decode('não existe em nossa base de dados')))
+		else if(strstr($html3,'n&atilde;o existe em nossa base de dados'))
 		{$resultado['status'] = 'CPF não existe';}
-		else if(strstr($html3,utf8_decode('Os caracteres da imagem não foram preenchidos corretamente')))
+		else if(strstr($html3,'Os caracteres da imagem n&atilde;o foram preenchidos corretamente'))
 		{$resultado['status'] = 'Imagem digitada incorretamente';}
+		else if(strstr($html3,'Data de nascimento informada'))
+		{$resultado['status'] = 'Data de Nascimento divergente';}
 		else
 		{$resultado['status'] = 'Receita não responde';}
 	}
 	else
 	{$resultado['status'] = 'OK';}
-
 	return $resultado;
-
 }
-
- 
 ?>

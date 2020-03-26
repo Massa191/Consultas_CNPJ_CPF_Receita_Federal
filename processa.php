@@ -1,6 +1,6 @@
 <?php
 // Criado por Marcos Peli
-// ultima atualização 05/06/2015 - correçâo ref alteraçâo parametros consulta CPF da receita de 03/06/2015
+// ultima atualização 26/03/2020 - Scripts alterados para utilização do captcha sonoro, unica opção após a atualização da receita com recaptcha do google
 // o objetivo dos scripts deste repositório é integrar consultas de CNPJ e CPF diretamente da receita federal
 // para dentro de aplicações web que necessitem da resposta destas consultas para proseguirem, como e-comerce e afins.
 
