@@ -224,7 +224,7 @@ function parseHtmlCNPJ($html)
 	 );
 	// prepara a resposta para extrair os dados
 	$html = str_replace('<br><b>','<b>',str_replace($caract_especiais,'',strip_tags($html,'<b><br>')));
-	
+	$html = str_replace(' <b>','<b>',$html);
 	$html3 = $html;
 	// faz a extração
 	for($i=0;$i<count($campos);$i++)
@@ -234,10 +234,10 @@ function parseHtmlCNPJ($html)
 		$html=$html2;
 	}
 	// extrai os CNAEs secundarios , quando forem mais de um
-	if(strstr($resultado[5],'<b>'))
+	if(strstr($resultado[6],'<b>'))
 	{
-		$cnae_secundarios = explode('<b>',$resultado[5]);
-		$resultado[5] = $cnae_secundarios;
+		$cnae_secundarios = explode('<b>',$resultado[6]);
+		$resultado[6] = $cnae_secundarios;
 		unset($cnae_secundarios);
 	}
 	// devolve STATUS da consulta correto
